@@ -12,39 +12,30 @@ You must modify the following flags:
 
 `--nproc_per_node=<number_of_gpus_available>`
 
-## fcn_resnet50
+## All models
 ```
-python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --lr 0.02 --dataset coco -b 4 --model fcn_resnet50 --aux-loss
-```
+2,2,3,3,3:5,5,0,0,5,5,0,0,7,5,7,0,3,5,5,0,7,5,5,0:3,3,0,0,4,3,0,0,4,3,3,0,6,4,4,0,6,6,6,0 pfnag-cpu-30.pt
+2,3,3,3,3:5,3,0,0,5,5,7,0,5,7,7,0,5,5,7,0,7,5,7,0:3,4,0,0,4,6,3,0,6,4,6,0,6,6,6,0,6,6,6,0 pfnag-cpu-35.pt
+2,3,4,4,4:5,3,0,0,7,5,7,0,5,5,3,3,5,7,7,7,3,3,3,7:4,4,0,0,4,4,4,0,4,6,6,4,6,4,6,6,6,6,6,4 pfnag-cpu-40.pt
+2,3,4,4,4:7,5,0,0,7,7,7,0,7,5,3,7,7,7,7,7,7,3,3,7:4,6,0,0,6,6,6,0,6,6,6,6,6,6,6,6,6,6,6,6 pfnag-cpu-45.pt
+3,4,4,4,4:5,3,7,0,5,7,7,7,7,7,3,7,7,7,7,7,5,7,3,7:4,4,6,0,6,6,6,6,6,6,4,6,6,6,6,6,6,6,6,6 pfnag-cpu-50.pt
 
-## fcn_resnet101
-```
-python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --lr 0.02 --dataset coco -b 4 --model fcn_resnet101 --aux-loss
-```
+2,2,3,3,4:3,3,0,0,5,3,0,0,5,5,3,0,3,7,3,0,5,3,3,7:3,3,0,0,3,4,0,0,3,3,3,0,4,3,4,0,6,6,6,3 pfnag-gpu-90.pt
+2,3,3,4,4:3,3,0,0,5,3,3,0,5,5,3,0,3,5,5,5,7,7,7,5:3,3,0,0,4,4,4,0,4,3,4,0,6,4,6,4,6,6,6,4 pfnag-gpu-115.pt
+2,3,4,4,4:3,3,0,0,7,5,5,0,5,7,5,5,3,5,5,5,7,7,5,5:4,3,0,0,6,4,4,0,4,4,6,6,6,6,6,6,6,6,6,4 pfnag-gpu-140.pt
+2,4,4,4,4:3,3,0,0,7,5,5,5,7,5,7,5,7,7,7,5,7,7,7,5:3,4,0,0,6,6,6,6,6,6,4,6,6,6,6,6,6,6,6,6 pfnag-gpu-165.pt
+3,4,4,4,4:3,3,5,0,7,3,5,7,7,7,5,3,7,5,7,5,7,3,7,3:4,4,6,0,6,4,6,6,6,6,6,6,6,6,6,6,6,6,6,6 pfnag-gpu-190.pt
 
-## deeplabv3_resnet50
+2,3,3,3,3:3,3,0,0,3,5,3,0,3,3,5,0,3,3,5,0,5,5,7,0:3,3,0,0,4,3,3,0,4,4,4,0,4,6,6,0,6,6,3,0 pfnag-mobile-80.pt
+2,3,3,4,4:5,3,0,0,5,3,3,0,3,5,5,0,5,5,5,3,7,5,7,5:3,4,0,0,3,4,4,0,3,3,6,0,4,6,6,6,6,6,6,6 pfnag-mobile-110.pt
+2,4,4,4,4:5,3,0,0,5,5,5,3,5,5,5,5,3,5,5,5,7,5,5,5:4,3,0,0,4,4,4,6,6,3,6,3,6,6,4,6,6,6,6,3 pfnag-mobile-140.pt
+3,4,4,4,4:5,3,7,0,5,5,5,5,5,5,5,5,3,5,5,3,7,5,5,5:4,4,6,0,4,4,6,6,6,4,6,6,6,6,4,6,6,6,6,6 pfnag-mobile-170.pt
+4,4,4,4,4:5,5,5,5,5,7,3,5,7,5,5,3,3,5,5,3,5,3,3,5:6,6,6,6,4,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6 pfnag-mobile-200.pt
 ```
-python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --lr 0.02 --dataset coco -b 4 --model deeplabv3_resnet50 --aux-loss
-```
-
-## deeplabv3_resnet101
-```
-python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --lr 0.02 --dataset coco -b 4 --model deeplabv3_resnet101 --aux-loss
-```
-
-## deeplabv3_mobilenet_v3_large
-```
-python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --dataset coco -b 4 --model deeplabv3_mobilenet_v3_large --aux-loss --wd 0.000001
-```
-
-## lraspp_mobilenet_v3_large
-```
-python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --dataset coco -b 4 --model lraspp_mobilenet_v3_large --wd 0.000001
-```
-
-------------------------------
 
 ours
 ```
 python -m torch.distributed.launch --nproc_per_node=4 --use_env train.py --dataset coco -b 4 --aux-loss --wd 0.000001 --arch 3,3,3,4,4:5,5,7,0,5,5,7,0,5,7,5,0,5,5,5,7,5,7,7,7:6,6,3,0,6,4,6,0,6,6,6,0,6,6,6,4,6,6,4,4
+
+LD_LIBRARY_PATH=~/miniconda3/lib python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --aux-loss --arch 3,4,4,4,4:5,3,7,0,5,7,7,7,7,7,3,7,7,7,7,7,5,7,3,7:4,4,6,0,6,6,6,6,6,6,4,6,6,6,6,6,6,6,6,6 --output-dir output | tee output.txt
 ```

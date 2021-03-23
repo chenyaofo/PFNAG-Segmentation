@@ -10,7 +10,7 @@ from .ofa.utils.layers import ConvLayer, IdentityLayer, LinearLayer, MBConvLayer
 from .ofa.utils import make_divisible, val2list, MyNetwork
 from .mobilenet_v3 import MobileNetV3Segmentation
 from torch.nn import functional as F
-
+# from torchvision.models.segmentation.lraspp import LRASPPHead
 __all__ = ['SPOSMobileNetV3Segmentation']
 
 
@@ -18,16 +18,16 @@ class DeepLabHead(nn.Sequential):
     def __init__(self, in_channels, num_classes):
         super(DeepLabHead, self).__init__(
             # ASPP(in_channels, [12, 24, 36]),
-            nn.Conv2d(in_channels, 256, 3, padding=1, bias=False),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(in_channels, 128, 3, padding=1, bias=False),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.Conv2d(256, num_classes, 1)
+            nn.Conv2d(128, num_classes, 1)
         )
 
 
 class SPOSMobileNetV3Segmentation(nn.Module):
 
-    def __init__(self, n_classes=21, bn_param=(0.1, 1e-5), dropout_rate=0.1, base_stage_width=None, width_mult=1.0,
+    def __init__(self, n_classes=19, bn_param=(0.1, 1e-5), dropout_rate=0.1, base_stage_width=None, width_mult=1.0,
                  ks_list=[3, 5, 7], expand_ratio_list=[3, 4, 6], depth_list=[2, 3, 4]):
         super(SPOSMobileNetV3Segmentation, self).__init__()
         self.n_classes = n_classes
@@ -42,6 +42,7 @@ class SPOSMobileNetV3Segmentation(nn.Module):
 
         self.bn_param = bn_param
 
+        # base_stage_width = [16, 16, 24, 40, 80, 112, 160, 960, 1280]
         base_stage_width = [16, 16, 24, 40, 80, 112, 160, 960, 1280]
 
         final_expand_width = make_divisible(base_stage_width[-2] * self.width_mult, MyNetwork.CHANNEL_DIVISIBLE)

@@ -7,6 +7,9 @@ import torch.utils.data
 from torch import nn
 import torchvision
 
+import transforms as T
+import dataset
+
 from coco_utils import get_coco
 import presets
 import utils
@@ -97,18 +100,51 @@ def main(args):
 
     device = torch.device(args.device)
 
-    dataset, num_classes = get_dataset(args.data_path, args.dataset, "train", get_transform(train=True))
-    dataset_test, _ = get_dataset(args.data_path, args.dataset, "val", get_transform(train=False))
+    # dataset, num_classes = get_dataset(args.data_path, args.dataset, "train", get_transform(train=True))
+    # dataset_test, _ = get_dataset(args.data_path, args.dataset, "val", get_transform(train=False))
+
+    value_scale = 255
+    mean = [0.485, 0.456, 0.406]
+    mean = [item * value_scale for item in mean]
+    std = [0.229, 0.224, 0.225]
+    std = [item * value_scale for item in std]
+
+    scale_min = 0.5
+    scale_max = 1.75
+    rotate_min = -1
+    rotate_max = 1
+    train_h = 512
+    train_w = 1024
+    ignore_label = 255
+
+    train_transform = T.Compose([
+        T.RandScale([scale_min, scale_max]),
+        T.RandRotate([rotate_min, rotate_max], padding=mean, ignore_label=ignore_label),
+        T.RandomGaussianBlur(),
+        T.RandomHorizontalFlip(),
+        T.Crop([train_h, train_w], crop_type='rand', padding=mean, ignore_label=ignore_label),
+        T.ToTensor(),
+        T.Normalize(mean=mean, std=std)
+    ])
+
+    dataset_train = dataset.CityscapesData(split='train', data_root=args.data_root, data_list=args.train_list, transform=train_transform)
+
+    val_transform = T.Compose([
+        T.Crop([train_h, train_w], crop_type='center', padding=mean, ignore_label=ignore_label),
+        T.ToTensor(),
+        T.Normalize(mean=mean, std=std)
+    ])
+    dataset_test = dataset.CityscapesData(split='val', data_root=args.data_root, data_list=args.val_list, transform=val_transform)
 
     if args.distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+        train_sampler = torch.utils.data.distributed.DistributedSampler(dataset_train)
         test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test)
     else:
-        train_sampler = torch.utils.data.RandomSampler(dataset)
+        train_sampler = torch.utils.data.RandomSampler(dataset_train)
         test_sampler = torch.utils.data.SequentialSampler(dataset_test)
 
     data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=args.batch_size,
+        dataset_train, batch_size=args.batch_size,
         sampler=train_sampler, num_workers=args.workers,
         collate_fn=utils.collate_fn, drop_last=True)
 
@@ -116,7 +152,7 @@ def main(args):
         dataset_test, batch_size=1,
         sampler=test_sampler, num_workers=args.workers,
         collate_fn=utils.collate_fn)
-
+    num_classes=19
     # model = torchvision.models.segmentation.__dict__[args.model](num_classes=num_classes,
     #                                                              aux_loss=args.aux_loss,
     #                                                              pretrained=args.pretrained)
@@ -140,7 +176,7 @@ def main(args):
     ]
     if args.aux_loss:
         params = [p for p in model_without_ddp.aux_head.parameters() if p.requires_grad]
-        params_to_optimize.append({"params": params, "lr": args.lr * 10})
+        params_to_optimize.append({"params": params, "lr": args.lr})
     optimizer = torch.optim.SGD(
         params_to_optimize,
         lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
@@ -190,16 +226,18 @@ def parse_args():
 
     parser.add_argument('--arch', default=None, type=str)
 
-    parser.add_argument('--data-path', default='COCO2017/', help='dataset path')
-    parser.add_argument('--dataset', default='coco', help='dataset name')
+    parser.add_argument('--data-root', default='CityScapes', help='dataset path')
+    parser.add_argument('--train-list', default='assets/train.lst', help='dataset path')
+    parser.add_argument('--val-list', default='assets/val.lst', help='dataset path')
+    # parser.add_argument('--dataset', default='citys', help='dataset name')
     # parser.add_argument('--model', default='fcn_resnet101', help='model')
     parser.add_argument('--aux-loss', action='store_true', help='auxiliar loss')
     parser.add_argument('--device', default='cuda', help='device')
-    parser.add_argument('-b', '--batch-size', default=8, type=int)
-    parser.add_argument('--epochs', default=30, type=int, metavar='N',
+    parser.add_argument('-b', '--batch-size', default=2, type=int)
+    parser.add_argument('--epochs', default=490, type=int, metavar='N',
                         help='number of total epochs to run')
 
-    parser.add_argument('-j', '--workers', default=8, type=int, metavar='N',
+    parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                         help='number of data loading workers (default: 16)')
     parser.add_argument('--lr', default=0.01, type=float, help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M',

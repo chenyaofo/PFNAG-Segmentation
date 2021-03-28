@@ -79,7 +79,7 @@ for arch in archs:
     model = supernet.get_subnet(OFAArchitecture.from_legency_string(arch))
     # print(model)
     # resolutions = [(1, 3, 1024, 512), (1, 3, 769, 769), (1, 3, 2048, 1024)]
-    resolutions = [(1, 3, 1024, 512)]
+    resolutions = [(1, 3, 224, 224)]
 
     for r in resolutions:
         with torch.no_grad():
@@ -88,10 +88,10 @@ for arch in archs:
             print(arch, r, rev/1e6,param/1e6)
     print("---")
 # r =(1, 3, 1024, 512)
-r =(1, 3, 2048, 1024)
-model = lraspp_mobilenet_v3_large(num_classes=19)
+# r =(1, 3, 2048, 1024)
+# model = lraspp_mobilenet_v3_large(num_classes=19)
 
-# print(model)
-param = compute_nparam(model)
-rev = compute_flops(model, r)
-print(  r, rev/1e6,param/1e6)
+# # print(model)
+# param = compute_nparam(model)
+# rev = compute_flops(model, r)
+# print(  r, rev/1e6,param/1e6)

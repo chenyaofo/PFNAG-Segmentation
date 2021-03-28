@@ -37,5 +37,7 @@ ours
 ```
 python -m torch.distributed.launch --nproc_per_node=4 --use_env train.py --dataset coco -b 4 --aux-loss --wd 0.000001 --arch 3,3,3,4,4:5,5,7,0,5,5,7,0,5,7,5,0,5,5,5,7,5,7,7,7:6,6,3,0,6,4,6,0,6,6,6,0,6,6,6,4,6,6,4,4
 
-LD_LIBRARY_PATH=~/miniconda3/lib python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --aux-loss --arch 3,4,4,4,4:5,3,7,0,5,7,7,7,7,7,3,7,7,7,7,7,5,7,3,7:4,4,6,0,6,6,6,6,6,6,4,6,6,6,6,6,6,6,6,6 --output-dir output | tee output.txt
+LD_LIBRARY_PATH=~/miniconda3/lib python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --aux-loss --arch 4,4,4,4,4:5,5,5,5,5,7,3,5,7,5,5,3,3,5,5,3,5,3,3,5:6,6,6,6,4,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6 --output-dir output | tee output.txt
+
+LD_LIBRARY_PATH=~/miniconda3/lib python -m torch.distributed.launch --nproc_per_node=8 --use_env train.py --pretrained --arch 4,4,4,4,4:5,5,5,5,5,7,3,5,7,5,5,3,3,5,5,3,5,3,3,5:6,6,6,6,4,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6 --lr 0.001 --output-dir output | tee output.txt
 ```

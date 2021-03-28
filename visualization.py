@@ -19,6 +19,8 @@ from spos_ofa_segmentation.representation import OFAArchitecture
 from convert_seg import convert2segmentation
 from ofa.ofa_mbv3 import OFAMobileNetV3
 
+from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import make_grid
 
 def get_dataset(dir_path, name, image_set, transform):
     def sbd(*args, **kwargs):
@@ -139,118 +141,22 @@ def main(args):
     ])
     dataset_test = dataset.CityscapesData(split='val', data_root=args.data_root, data_list=args.val_list, transform=val_transform)
 
-    if args.distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(dataset_train)
-        test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test)
-    else:
-        train_sampler = torch.utils.data.RandomSampler(dataset_train)
-        test_sampler = torch.utils.data.SequentialSampler(dataset_test)
-
-    data_loader = torch.utils.data.DataLoader(
-        dataset_train, batch_size=args.batch_size,
-        sampler=train_sampler, num_workers=args.workers,
-        collate_fn=utils.collate_fn, drop_last=True)
-
-    data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1,
-        sampler=test_sampler, num_workers=args.workers,
-        collate_fn=utils.collate_fn)
-    num_classes = 19
+    writer = SummaryWriter("vis")
+    def _add_prefix(s, prefix, joiner='/'):
+        return joiner.join([prefix, s])
+    def visualize_image(images, global_step,
+                        num_row=3, image_set="TRAIN", name="IMAGE"):
+        grid_image = make_grid(images[:num_row].clone().cpu().data, num_row, normalize=True)
+        writer.add_image(_add_prefix(name.capitalize(), image_set.capitalize()),
+                              grid_image, global_step)
+    img,tgt = dataset_test[0]
+    print(img.shape)
+    visualize_image(img, 0)
+    writer.close()
     # model = torchvision.models.segmentation.__dict__[args.model](num_classes=num_classes,
     #                                                              aux_loss=args.aux_loss,
     #                                                              pretrained=args.pretrained)
-    if args.pretrained:
-        supernet = OFAMobileNetV3(
-            n_classes=1000,
-            dropout_rate=0,
-            width_mult_list=1.2,
-            ks_list=[3, 5, 7],
-            expand_ratio_list=[3, 4, 6],
-            depth_list=[2, 3, 4],
-        )
-        arch = OFAArchitecture.from_legency_string(args.arch)
-        supernet.set_active_subnet(ks=arch.ks, e=arch.ratios, d=arch.depths)
-        model = supernet.get_active_subnet()
 
-        s = torch.load("model_best.pth.tar", map_location="cpu")
-        model.load_state_dict(s["state_dict_ema"])
-        model = convert2segmentation(model=model, begin_index_index=17)
-        print("load pretrained model.")
-    else:
-        supernet = SPOSMobileNetV3Segmentation(width_mult=1.2)
-        model = supernet.get_subnet(OFAArchitecture.from_legency_string(args.arch))
-
-    model.to(device)
-    if args.distributed:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-
-    model_without_ddp = model
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-        model_without_ddp = model.module
-
-    if args.pretrained:
-        params_to_optimize = [
-            {"params": [p for p in model_without_ddp.backbone.parameters() if p.requires_grad]},
-            {"params": [p for p in model_without_ddp.stem.parameters() if p.requires_grad]},
-        ]
-        if args.aux_loss:
-            params = [p for p in model_without_ddp.classifier.parameters() if p.requires_grad]
-            params_to_optimize.append({"params": params, "lr": args.lr * 10})
-        optimizer = torch.optim.SGD(
-            params_to_optimize,
-            lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    else:
-        params_to_optimize = [
-            {"params": [p for p in model_without_ddp.first_conv.parameters() if p.requires_grad]},
-            {"params": [p for p in model_without_ddp.blocks.parameters() if p.requires_grad]},
-            {"params": [p for p in model_without_ddp.remain_block.parameters() if p.requires_grad]},
-            {"params": [p for p in model_without_ddp.head.parameters() if p.requires_grad]},
-        ]
-        if args.aux_loss:
-            params = [p for p in model_without_ddp.aux_head.parameters() if p.requires_grad]
-            params_to_optimize.append({"params": params, "lr": args.lr})
-        optimizer = torch.optim.SGD(
-            params_to_optimize,
-            lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-
-    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lambda x: (1 - x / (len(data_loader) * args.epochs)) ** 0.9)
-
-    if args.resume:
-        checkpoint = torch.load(args.resume, map_location='cpu')
-        model_without_ddp.load_state_dict(checkpoint['model'], strict=not args.test_only)
-        if not args.test_only:
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
-            args.start_epoch = checkpoint['epoch'] + 1
-
-    if args.test_only:
-        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
-        print(confmat)
-        return
-
-    start_time = time.time()
-    for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
-            train_sampler.set_epoch(epoch)
-        train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, args.print_freq)
-        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
-        print(confmat)
-        utils.save_on_master(
-            {
-                'model': model_without_ddp.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'lr_scheduler': lr_scheduler.state_dict(),
-                'epoch': epoch,
-                'args': args
-            },
-            os.path.join(args.output_dir, 'model_{}.pth'.format(epoch)))
-
-    total_time = time.time() - start_time
-    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    print('Training time {}'.format(total_time_str))
 
 
 def parse_args():
